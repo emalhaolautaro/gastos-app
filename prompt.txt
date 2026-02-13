@@ -1,0 +1,95 @@
+# Prompt para Aplicación de Gestor Financiero
+
+Quiero una aplicación web completa para gestionar ingresos y gastos personales con las siguientes características:
+
+## Funcionalidades Principales
+
+1. **Sistema de Transacciones:**
+   - Formulario para agregar transacciones (ingresos y gastos)
+   - Campos: descripción, monto, moneda (ARS/USD), categoría, fecha
+   - Si se elige USD, debe aparecer un campo para ingresar la cotización del día
+   - Mostrar conversión en tiempo real: monto USD × cotización = ARS
+   - Guardar tanto el monto original como el monto convertido a ARS
+   - Historial de transacciones con filtros y búsqueda
+
+2. **Sistema de Monedas:**
+   - Moneda base: Peso Argentino (ARS)
+   - Permitir ingresar transacciones en USD o ARS
+   - Para USD: campo de cotización obligatorio al momento de ingresar la transacción
+   - Todos los cálculos y totales deben hacerse en ARS
+   - En el historial, mostrar monto original y conversión si es USD
+
+3. **Categorías Personalizables:**
+   - Categorías predefinidas para gastos: Alimentación, Transporte, Vivienda, Servicios, Entretenimiento, Salud, Educación, Otros
+   - Categorías predefinidas para ingresos: Salario, Freelance, Inversiones, Otros
+   - Permitir crear, editar y eliminar categorías (incluyendo las predefinidas)
+   - Cada categoría debe tener: nombre, tipo (ingreso/gasto), icono (de lucide-react), color personalizado
+   - No permitir eliminar categorías que tengan transacciones asociadas
+
+4. **Dashboard Interactivo:**
+   - **Tarjetas de resumen:** Balance Total, Ingresos Totales, Gastos Totales, Tasa de Ahorro (%)
+   - **Filtros:** Por año y por mes (lado a lado en la misma línea)
+   - **Gráfico de dona:** Distribución Ingresos vs Gastos
+   - **Gráfico de área:** Tendencia mensual de ingresos y gastos
+   - **Gráfico de dona:** Gastos por categoría
+   - **Gráfico ABC (Pareto):** Análisis de gastos con barras y línea acumulada al 80%
+   - **Gráfico de barras:** Comparativa interanual (si hay más de un año)
+   - **Gráfico de barras:** Comparativa de categorías
+
+5. **Gráfico ABC (Pareto) - IMPORTANTE:**
+   - Mostrar categorías de gastos ordenadas de mayor a menor
+   - Barras con el monto de cada categoría (eje Y izquierdo)
+   - Línea de porcentaje acumulado (eje Y derecho)
+   - Línea horizontal punteada en 80% para identificar categorías críticas
+   - Ajustes: width={80} en ambos YAxis, margin={{ left: 20, right: 20 }} en ComposedChart
+   - Labels con offset: 10 para separar del eje
+
+## Diseño Visual
+
+- **Color de fondo:** Rosa pastel (#fce7f3 o similar)
+- **Acentos:** Beige cálido (#fef3c7 o similar) 
+- **Textos:** Colores oscuros para buen contraste
+- **Componentes:** Usar shadcn/ui con Tailwind CSS
+- **Navegación:** Tabs con 4 secciones: Dashboard, Agregar, Historial, Categorías
+- **Iconos:** lucide-react
+- **Responsive:** Debe verse bien en desktop y móvil
+
+## Estructura de Componentes
+
+1. **App.tsx** - Componente principal con tabs
+2. **Dashboard.tsx** - Todos los gráficos y estadísticas
+3. **TransactionForm.tsx** - Formulario para agregar transacciones
+4. **TransactionList.tsx** - Historial de transacciones
+5. **CategoryManager.tsx** - Gestión de categorías
+
+## Datos y Persistencia
+
+- Usar localStorage para guardar: transacciones, categorías
+- La aplicación es solo frontend (preparada para integrarse con Tauri + SQLite)
+- Los montos deben guardarse con esta estructura:
+  ```typescript
+  {
+    amount: number,          // monto original
+    amountInARS: number,     // monto convertido a ARS
+    currency: 'ARS' | 'USD',
+    exchangeRate?: number    // solo si currency === 'USD'
+  }
+
+Tecnologías
+
+    React + TypeScript
+    Tailwind CSS v4
+    shadcn/ui components
+    recharts para gráficos
+    lucide-react para iconos
+    Todos los cálculos en ARS
+
+Detalles Importantes
+
+    NO incluir selector de moneda global en configuración
+    El selector de moneda solo debe aparecer al agregar una transacción
+    Todos los totales, balances y gráficos calculan con amountInARS
+    Formato de moneda: español argetino (es-AR)
+    Validar que la cotización sea obligatoria y mayor a 0 si se elige USD
+    Los filtros de año y mes deben estar en la misma línea (flex)
+n
