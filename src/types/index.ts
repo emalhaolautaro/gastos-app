@@ -3,24 +3,26 @@ export type Currency = 'ARS' | 'USD';
 export type TransactionType = 'income' | 'expense';
 
 export interface Category {
-    id: string;
+    id: number;
     name: string;
     type: TransactionType;
     icon: string; // lucide-react icon name
     color: string;
-    isDefault?: boolean;
+    is_default: boolean;
 }
 
 export interface Transaction {
-    id: string;
+    id: number;
     description: string;
     amount: number;
-    amountInARS: number;
+    amount_in_ars: number;
     currency: Currency;
-    exchangeRate?: number; // Required if currency is USD
-    categoryId: string;
-    date: string; // ISO string
+    exchange_rate: number | null;
+    category_id: number;
+    date: string; // ISO 8601 string
     type: TransactionType;
+    created_at: string; // ISO 8601 string
+    updated_at: string; // ISO 8601 string
 }
 
 export interface DashboardStats {

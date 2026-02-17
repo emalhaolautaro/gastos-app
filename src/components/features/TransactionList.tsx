@@ -1,52 +1,56 @@
 import { useState, useMemo } from 'react';
+import { parseISO, format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Category, Transaction } from '../../types';
 import { formatCurrency, cn } from '../../lib/utils';
+import { getAvailableYears } from '../../utils/dateHelpers';
+import { getCategoryById } from '../../utils/categoryHelpers';
+import { MONTHS } from '../../data/months';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Button } from '../ui/button';
 import { Trash2, Search, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
 import { Card } from '../ui/card';
+import { ConfirmDialog, useConfirmDialog } from '../ui/ConfirmDialog';
 
 interface TransactionListProps {
     transactions: Transaction[];
     categories: Category[];
-    setTransactions: (transactions: Transaction[]) => void;
+    onDeleteTransaction: (id: number) => void;
 }
 
-export function TransactionList({ transactions, categories, setTransactions }: TransactionListProps) {
+export function TransactionList({ transactions, categories, onDeleteTransaction }: TransactionListProps) {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
     const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
+    const { confirm, dialogProps } = useConfirmDialog();
 
-    // Derive available years from transactions
-    const availableYears = useMemo(() => {
-        const years = Array.from(new Set(transactions.map(t => new Date(t.date).getFullYear())));
-        if (!years.includes(new Date().getFullYear())) {
-            years.push(new Date().getFullYear());
-        }
-        return years.sort((a, b) => b - a);
-    }, [transactions]);
+    const availableYears = useMemo(
+        () => getAvailableYears(transactions),
+        [transactions]
+    );
 
     const filteredTransactions = useMemo(() => {
         return transactions
             .filter(t => {
-                const date = new Date(t.date); // Assuming ISO string YYYY-MM-DD
+                const date = new Date(t.date);
                 const matchYear = selectedYear === 'all' || date.getFullYear().toString() === selectedYear;
                 const matchMonth = selectedMonth === 'all' || (date.getMonth() + 1).toString() === selectedMonth;
                 const matchSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase());
-
                 return matchYear && matchMonth && matchSearch;
             })
             .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     }, [transactions, selectedYear, selectedMonth, searchTerm]);
 
-    const handleDelete = (id: string) => {
-        if (confirm('¿Eliminar esta transacción?')) {
-            setTransactions(transactions.filter(t => t.id !== id));
-        }
+    const handleDelete = (id: number) => {
+        confirm({
+            title: 'Eliminar transacción',
+            description: '¿Estás seguro de que querés eliminar esta transacción? Esta acción no se puede deshacer.',
+            confirmLabel: 'Eliminar',
+            variant: 'destructive',
+            onConfirm: () => onDeleteTransaction(id),
+        });
     };
-
-    const getCategory = (id: string) => categories.find(c => c.id === id);
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-100">
@@ -80,18 +84,9 @@ export function TransactionList({ transactions, categories, setTransactions }: T
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">Todos los meses</SelectItem>
-                            <SelectItem value="1">Enero</SelectItem>
-                            <SelectItem value="2">Febrero</SelectItem>
-                            <SelectItem value="3">Marzo</SelectItem>
-                            <SelectItem value="4">Abril</SelectItem>
-                            <SelectItem value="5">Mayo</SelectItem>
-                            <SelectItem value="6">Junio</SelectItem>
-                            <SelectItem value="7">Julio</SelectItem>
-                            <SelectItem value="8">Agosto</SelectItem>
-                            <SelectItem value="9">Septiembre</SelectItem>
-                            <SelectItem value="10">Octubre</SelectItem>
-                            <SelectItem value="11">Noviembre</SelectItem>
-                            <SelectItem value="12">Diciembre</SelectItem>
+                            {MONTHS.map(m => (
+                                <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
@@ -104,20 +99,24 @@ export function TransactionList({ transactions, categories, setTransactions }: T
                     </div>
                 ) : (
                     filteredTransactions.map((transaction) => {
-                        const category = getCategory(transaction.categoryId);
+                        const category = getCategoryById(categories, transaction.category_id);
                         const isExpense = transaction.type === 'expense';
+                        const parsedDate = parseISO(transaction.date);
 
                         return (
                             <Card key={transaction.id} className="overflow-hidden hover:shadow-md transition-shadow">
                                 <div className="flex items-center p-4">
-                                    {/* Icon / Date */}
+                                    {/* Date badge */}
                                     <div className="flex flex-col items-center justify-center h-14 w-14 rounded-lg bg-muted text-muted-foreground mr-4 shrink-0">
-                                        <span className="text-xs font-bold uppercase">{new Date(transaction.date).toLocaleDateString('es-AR', { month: 'short' }).replace('.', '')}</span>
-                                        <span className="text-lg font-bold">{new Date(transaction.date).getDate() + 1 // Fix timezone offset simply for display
-                                        }</span>
+                                        <span className="text-xs font-bold uppercase">
+                                            {format(parsedDate, 'MMM', { locale: es }).replace('.', '')}
+                                        </span>
+                                        <span className="text-lg font-bold">
+                                            {format(parsedDate, 'd')}
+                                        </span>
                                     </div>
 
-                                    {/* Icon Indicator */}
+                                    {/* Type indicator */}
                                     <div className={cn(
                                         "p-2 rounded-full mr-4 shrink-0",
                                         isExpense ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
@@ -133,7 +132,7 @@ export function TransactionList({ transactions, categories, setTransactions }: T
                                                 "font-bold text-lg whitespace-nowrap",
                                                 isExpense ? "text-destructive" : "text-green-600"
                                             )}>
-                                                {isExpense ? '-' : '+'}{formatCurrency(transaction.amountInARS, 'ARS')}
+                                                {isExpense ? '-' : '+'}{formatCurrency(transaction.amount_in_ars, 'ARS')}
                                             </p>
                                         </div>
 
@@ -147,12 +146,17 @@ export function TransactionList({ transactions, categories, setTransactions }: T
                                                 </span>
                                                 {transaction.currency === 'USD' && (
                                                     <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded border border-yellow-200">
-                                                        USD {transaction.amount.toFixed(2)} (TC: {transaction.exchangeRate})
+                                                        USD {transaction.amount.toFixed(2)} (TC: {transaction.exchange_rate})
                                                     </span>
                                                 )}
                                             </div>
 
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(transaction.id)}>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 -mr-2 text-muted-foreground hover:text-destructive"
+                                                onClick={() => handleDelete(transaction.id)}
+                                            >
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -163,6 +167,8 @@ export function TransactionList({ transactions, categories, setTransactions }: T
                     })
                 )}
             </div>
+
+            <ConfirmDialog {...dialogProps} />
         </div>
     );
 }

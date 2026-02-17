@@ -1,27 +1,53 @@
 import { useState } from 'react';
 import { Toaster, toast } from 'sonner';
-import { useLocalStorage } from './hooks/useLocalStorage';
+import { useCategories } from './hooks/useCategories';
+import { useTransactions } from './hooks/useTransactions';
 import { CategoryManager } from './components/features/CategoryManager';
 import { TransactionForm } from './components/features/TransactionForm';
 import { TransactionList } from './components/features/TransactionList';
 import { Dashboard } from './components/features/Dashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
-import { defaultCategories } from './data/categories';
-import { Category, Transaction } from './types';
+import { Transaction } from './types';
 import { LayoutDashboard, Plus, History, Tag, TrendingUp } from 'lucide-react';
 
 function App() {
-  const [categories, setCategories] = useLocalStorage<Category[]>('categories', defaultCategories);
-  const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
+  const {
+    categories,
+    loading: categoriesLoading,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+  } = useCategories();
+
+  const {
+    transactions,
+    loading: transactionsLoading,
+    addTransaction,
+    deleteTransaction,
+  } = useTransactions();
+
   const [activeTab, setActiveTab] = useState('dashboard');
 
-  const addTransaction = (transaction: Transaction) => {
-    setTransactions([transaction, ...transactions]);
-    toast.success('Transacción agregada correctamente');
-    // Optionally switch to history or dashboard?
-    // User requested: "El selector de moneda solo debe aparecer al agregar una transacción" -> done
-    // Let's keep user on the form to add more?
+  const handleAddTransaction = async (transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await addTransaction(transaction);
+      toast.success('Transacción agregada correctamente');
+    } catch {
+      toast.error('Error al agregar la transacción');
+    }
   };
+
+  const isLoading = categoriesLoading || transactionsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground text-lg font-medium animate-pulse">
+          Cargando datos...
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans">
@@ -60,7 +86,7 @@ function App() {
 
           <TabsContent value="add" className="focus-visible:outline-none">
             <div className="animate-in fade-in zoom-in-95 duration-300">
-              <TransactionForm onAddTransaction={addTransaction} categories={categories} />
+              <TransactionForm onAddTransaction={handleAddTransaction} categories={categories} />
             </div>
           </TabsContent>
 
@@ -68,23 +94,21 @@ function App() {
             <TransactionList
               transactions={transactions}
               categories={categories}
-              setTransactions={setTransactions}
+              onDeleteTransaction={deleteTransaction}
             />
           </TabsContent>
 
           <TabsContent value="categories" className="focus-visible:outline-none">
             <CategoryManager
               categories={categories}
-              setCategories={setCategories}
               transactions={transactions}
+              onAddCategory={addCategory}
+              onUpdateCategory={updateCategory}
+              onDeleteCategory={deleteCategory}
             />
           </TabsContent>
         </Tabs>
       </main>
-
-      <div className="fixed bottom-4 right-4 z-50">
-        {/* Floating Help Button or similar could go here */}
-      </div>
 
       <Toaster />
     </div>

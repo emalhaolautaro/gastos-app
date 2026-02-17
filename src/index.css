@@ -1,48 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap');
-@import "tailwindcss";
-
-@theme {
-  --color-background: #fce7f3;
-  --color-foreground: #000000;
-
-  --color-card: #fffbeb;
-  --color-card-foreground: #000000;
-
-  --color-popover: #fffbeb;
-  --color-popover-foreground: #000000;
-
-  --color-primary: #db2777;
-  --color-primary-foreground: #ffffff;
-
-  --color-secondary: #fcd34d;
-  /* Darker beige */
-  --color-secondary-foreground: #000000;
-
-  --color-muted: #f3e8ff;
-  --color-muted-foreground: #374151;
-
-  --color-accent: #fcd34d;
-  /* Darker beige */
-  --color-accent-foreground: #000000;
-
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-
-  --color-border: #e5e7eb;
-  --color-input: #e5e7eb;
-  --color-ring: #db2777;
-
-  --radius: 0.5rem;
-
-  --font-sans: "Quicksand", "Nunito", ui-rounded, system-ui, sans-serif;
-}
+@import './styles/tailwind.css';
+@import './styles/theme.css';
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
   body {
-    @apply bg-background text-foreground font-sans antialiased font-medium;
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: "Quicksand", "Nunito", ui-rounded, system-ui, sans-serif;
   }
 }
