@@ -24,7 +24,9 @@ pub fn get_categories(state: State<AppState>) -> Result<Vec<Category>, String> {
         })
         .map_err(|e| e.to_string())?;
 
-    let result: Vec<Category> = rows.filter_map(|r| r.ok()).collect();
+    let result: Vec<Category> = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
 
     Ok(result)
 }

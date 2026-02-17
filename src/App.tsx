@@ -2,9 +2,8 @@ import { useState } from 'react';
 import { Toaster, toast } from 'sonner';
 import { useCategories } from './hooks/useCategories';
 import { useTransactions } from './hooks/useTransactions';
-import { CategoryManager } from './components/features/CategoryManager';
-import { TransactionForm } from './components/features/TransactionForm';
-import { TransactionList } from './components/features/TransactionList';
+import { CategoryManager } from './components/features/categories';
+import { TransactionForm, TransactionList } from './components/features/transactions';
 import { Dashboard } from './components/features/Dashboard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs';
 import { Transaction } from './types';
@@ -23,6 +22,7 @@ function App() {
     transactions,
     loading: transactionsLoading,
     addTransaction,
+    updateTransaction,
     deleteTransaction,
   } = useTransactions();
 
@@ -34,6 +34,15 @@ function App() {
       toast.success('Transacción agregada correctamente');
     } catch {
       toast.error('Error al agregar la transacción');
+    }
+  };
+
+  const handleUpdateTransaction = async (id: number, transaction: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      await updateTransaction(id, transaction);
+      toast.success('Transacción actualizada correctamente');
+    } catch {
+      toast.error('Error al actualizar la transacción');
     }
   };
 
@@ -95,6 +104,7 @@ function App() {
               transactions={transactions}
               categories={categories}
               onDeleteTransaction={deleteTransaction}
+              onUpdateTransaction={handleUpdateTransaction}
             />
           </TabsContent>
 

@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Category, Transaction } from '../../types';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
-import { Card } from '../ui/card';
-import { formatCurrency, cn } from '../../lib/utils';
+import { Category, Transaction } from '../../../types';
+import { Button } from '../../ui/button';
+import { Input } from '../../ui/input';
+import { Label } from '../../ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../ui/select';
+import { Card } from '../../ui/card';
+
 import { Plus } from 'lucide-react';
-import { DynamicIcon } from '../ui/DynamicIcon';
-import { DatePickerField } from '../ui/DatePickerField';
+import { TypeSelector } from '../shared/TypeSelector';
+import { CategorySelect } from '../shared/CategorySelect';
+import { ExchangeRateField } from '../shared/ExchangeRateField';
+import { DatePickerField } from '../../ui/DatePickerField';
 
 const transactionSchema = z.object({
     description: z.string().min(1, 'La descripción es obligatoria'),
@@ -57,15 +59,11 @@ export function TransactionForm({ onAddTransaction, categories }: TransactionFor
     const date = watch('date');
     const selectedCategoryId = watch('categoryId');
 
-    const filteredCategories = categories.filter(c => c.type === selectedType);
-    const selectedCategory = categories.find(c => c.id === selectedCategoryId);
-
     const onSubmit = (data: TransactionFormValues) => {
         const amountInARS = data.currency === 'USD'
             ? (data.amount * (data.exchangeRate || 1))
             : data.amount;
 
-        // Map internal camelCase form values → snake_case for the backend
         onAddTransaction({
             description: data.description,
             amount: data.amount,
@@ -93,9 +91,9 @@ export function TransactionForm({ onAddTransaction, categories }: TransactionFor
         setValue('amount', isNaN(val) ? 0 : val);
     };
 
-    const handleRateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = parseFloat(e.target.value);
-        setValue('exchangeRate', isNaN(val) ? 0 : val);
+    const handleTypeChange = (type: 'income' | 'expense') => {
+        setSelectedType(type);
+        setValue('type', type);
     };
 
     return (
@@ -107,39 +105,7 @@ export function TransactionForm({ onAddTransaction, categories }: TransactionFor
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
-                    {/* Type Selector */}
-                    <div className="flex p-1 bg-muted/50 rounded-lg border">
-                        <button
-                            type="button"
-                            className={cn(
-                                "flex-1 py-2 rounded-md transition-all",
-                                selectedType === 'expense'
-                                    ? "bg-background text-foreground shadow-sm border border-pink-200"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                            onClick={() => {
-                                setSelectedType('expense');
-                                setValue('type', 'expense');
-                            }}
-                        >
-                            Gasto
-                        </button>
-                        <button
-                            type="button"
-                            className={cn(
-                                "flex-1 py-2 rounded-md transition-all",
-                                selectedType === 'income'
-                                    ? "bg-background text-foreground shadow-sm border border-pink-200"
-                                    : "text-muted-foreground hover:text-foreground"
-                            )}
-                            onClick={() => {
-                                setSelectedType('income');
-                                setValue('type', 'income');
-                            }}
-                        >
-                            Ingreso
-                        </button>
-                    </div>
+                    <TypeSelector value={selectedType} onChange={handleTypeChange} />
 
                     {/* Description */}
                     <div className="space-y-2">
@@ -188,64 +154,21 @@ export function TransactionForm({ onAddTransaction, categories }: TransactionFor
                         </div>
                     </div>
 
-                    {/* Exchange Rate (Conditional) */}
                     {currency === 'USD' && (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-md space-y-4 animate-in fade-in zoom-in-95">
-                            <div className="space-y-2">
-                                <Label htmlFor="exchangeRate" className="text-amber-700 font-bold">Cotización del Dólar (ARS)</Label>
-                                <Input
-                                    id="exchangeRate"
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="Ej: 1100"
-                                    onChange={handleRateChange}
-                                    className="bg-white border-amber-200"
-                                />
-                                {errors.exchangeRate && <p className="text-sm text-red-500">{errors.exchangeRate.message}</p>}
-                            </div>
-                            {amount > 0 && exchangeRate && exchangeRate > 0 && (
-                                <div className="text-sm text-amber-700 font-bold flex justify-between">
-                                    <span>Conversión estimada:</span>
-                                    <span>{formatCurrency(amount * exchangeRate, 'ARS')}</span>
-                                </div>
-                            )}
-                        </div>
+                        <ExchangeRateField
+                            amount={amount}
+                            exchangeRate={exchangeRate}
+                            onExchangeRateChange={(rate) => setValue('exchangeRate', rate)}
+                        />
                     )}
 
-                    {/* Category */}
-                    <div className="space-y-2">
-                        <Label htmlFor="category">Categoría</Label>
-                        <Select onValueChange={(val) => setValue('categoryId', Number(val))}>
-                            <SelectTrigger className="bg-input-background border-input h-12">
-                                <div className="flex items-center gap-2">
-                                    {selectedCategory ? (
-                                        <>
-                                            <div className="p-1.5 rounded-full bg-black/5" style={{ color: selectedCategory.color }}>
-                                                <DynamicIcon name={selectedCategory.icon} className="h-4 w-4" />
-                                            </div>
-                                            <span className="font-bold">{selectedCategory.name}</span>
-                                        </>
-                                    ) : <span className="text-muted-foreground font-normal">Selecciona una categoría</span>}
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[200px]">
-                                {filteredCategories.map(cat => (
-                                    <SelectItem key={cat.id} value={cat.id.toString()}>
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className="p-1.5 rounded-full bg-black/5 flex items-center justify-center"
-                                                style={{ color: cat.color }}
-                                            >
-                                                <DynamicIcon name={cat.icon} className="h-4 w-4" />
-                                            </div>
-                                            <span className="font-semibold">{cat.name}</span>
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors.categoryId && <p className="text-sm text-red-500">{errors.categoryId.message}</p>}
-                    </div>
+                    <CategorySelect
+                        categories={categories}
+                        type={selectedType}
+                        value={selectedCategoryId}
+                        onChange={(id) => setValue('categoryId', id)}
+                    />
+                    {errors.categoryId && <p className="text-sm text-red-500">{errors.categoryId.message}</p>}
 
                     {/* Date Picker */}
                     <div className="space-y-2 flex flex-col">

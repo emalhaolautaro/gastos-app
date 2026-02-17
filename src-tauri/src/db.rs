@@ -12,6 +12,9 @@ pub fn init_db(app: &tauri::App) -> Result<Connection, Box<dyn std::error::Error
     // Enable WAL mode for better concurrent read performance
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
 
+    // Enforce foreign key constraints (SQLite does NOT enforce them by default)
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS categories (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -25,8 +28,8 @@ pub fn init_db(app: &tauri::App) -> Result<Connection, Box<dyn std::error::Error
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             description TEXT NOT NULL,
-            amount REAL NOT NULL,
-            amount_in_ars REAL NOT NULL,
+            amount INTEGER NOT NULL,
+            amount_in_ars INTEGER NOT NULL,
             currency TEXT NOT NULL CHECK(currency IN ('ARS', 'USD')),
             exchange_rate REAL,
             category_id INTEGER NOT NULL,
@@ -35,7 +38,9 @@ pub fn init_db(app: &tauri::App) -> Result<Connection, Box<dyn std::error::Error
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY (category_id) REFERENCES categories(id)
-        );",
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);",
     )?;
 
     // Seed default categories if table is empty

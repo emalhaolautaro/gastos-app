@@ -158,6 +158,9 @@ impl TransactionInput {
     }
 }
 
+/// Update uses the same fields and validation as Input
+pub type TransactionUpdate = TransactionInput;
+
 // --- Shared validation helpers ---
 
 fn validate_name(name: &str) -> Result<(), String> {

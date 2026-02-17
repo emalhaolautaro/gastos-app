@@ -51,11 +51,25 @@ export function useTransactions() {
         }
     }, []);
 
+    const updateTransaction = useCallback(async (id: number, input: Omit<Transaction, 'id' | 'created_at' | 'updated_at'>) => {
+        try {
+            const updated = await invoke<Transaction>('update_transaction', { id, input });
+            setTransactions(prev => prev.map(t => t.id === id ? updated : t));
+            setError(null);
+            return updated;
+        } catch (e) {
+            setError(String(e));
+            console.error('Error updating transaction:', e);
+            throw e;
+        }
+    }, []);
+
     return {
         transactions,
         loading,
         error,
         addTransaction,
+        updateTransaction,
         deleteTransaction,
         refetch: fetchTransactions,
     } as const;

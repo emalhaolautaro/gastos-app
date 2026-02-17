@@ -27,6 +27,7 @@ pub fn run() {
             commands::transactions::get_transactions,
             commands::transactions::add_transaction,
             commands::transactions::delete_transaction,
+            commands::transactions::update_transaction,
             // Categories
             commands::categories::get_categories,
             commands::categories::add_category,
