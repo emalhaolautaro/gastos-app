@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../ui/card';
 import { formatCurrency } from '../../../lib/utils';
+import { formatCompact } from '../../../utils/formatCompact';
 
 interface ParetoDataPoint {
     name: string;
@@ -152,7 +153,7 @@ export function ParetoChart({ data }: ParetoChartProps) {
                                         yAxisId="left"
                                         orientation="left"
                                         tick={{ fontSize: 12, fontWeight: 600 }}
-                                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+                                        tickFormatter={formatCompact}
                                     />
 
                                     {/* Right axis: cumulative percentage */}

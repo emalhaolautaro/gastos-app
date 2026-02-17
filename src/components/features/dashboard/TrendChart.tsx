@@ -2,6 +2,7 @@ import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { formatCurrency } from '../../../lib/utils';
+import { formatCompact } from '../../../utils/formatCompact';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../ui/card';
 
 interface TrendDataPoint {
@@ -23,7 +24,7 @@ export function TrendChart({ data }: TrendChartProps) {
             </CardHeader>
             <CardContent className="h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                    <AreaChart data={data} margin={{ top: 10, right: 30, left: 20, bottom: 0 }}>
                         <defs>
                             <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%" stopColor="#4ade80" stopOpacity={0.8} />
@@ -35,7 +36,7 @@ export function TrendChart({ data }: TrendChartProps) {
                             </linearGradient>
                         </defs>
                         <XAxis dataKey="name" fontSize={14} tickLine={false} axisLine={false} tick={{ fontWeight: 'bold' }} />
-                        <YAxis fontSize={14} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} tick={{ fontWeight: 'bold' }} />
+                        <YAxis fontSize={14} tickLine={false} axisLine={false} tickFormatter={formatCompact} tick={{ fontWeight: 'bold' }} />
                         <CartesianGrid strokeDasharray="3 3" vertical={false} />
                         <Tooltip formatter={(value) => formatCurrency(Number(value))} contentStyle={{ fontWeight: 'bold' }} />
                         <Area type="monotone" dataKey="Ingresos" stroke="#4ade80" fillOpacity={1} fill="url(#colorIncome)" />
