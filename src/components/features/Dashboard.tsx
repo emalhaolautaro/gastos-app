@@ -8,6 +8,7 @@ import { TrendChart } from './dashboard/TrendChart';
 import { ExpensesPieChart } from './dashboard/ExpensesPieChart';
 import { ParetoChart } from './dashboard/ParetoChart';
 import { IncomeExpenseDonut } from './dashboard/IncomeExpenseDonut';
+import { CashFlowTable } from './dashboard/CashFlowTable';
 
 interface DashboardProps {
     transactions: Transaction[];
@@ -56,6 +57,12 @@ export function Dashboard({ transactions, categories }: DashboardProps) {
             <IncomeExpenseDonut
                 income={summary.income}
                 expenses={summary.expenses}
+            />
+
+            <CashFlowTable
+                transactions={transactions}
+                categories={categories}
+                selectedYear={selectedYear}
             />
         </div>
     );
