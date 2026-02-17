@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid,
-    ResponsiveContainer, ReferenceLine, ReferenceArea, Tooltip
+    ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
+    ResponsiveContainer, Cell, Tooltip, ReferenceLine, Legend
 } from 'recharts';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../../ui/card';
 import { formatCurrency } from '../../../lib/utils';
@@ -18,6 +18,10 @@ interface ParetoChartProps {
     data: ParetoDataPoint[];
 }
 
+// ABC thresholds with 5% tolerance on group A
+const THRESHOLD_A = 80; // standard 80% + 5% tolerance
+const THRESHOLD_B = 90;
+
 interface ABCGroup {
     label: string;
     color: string;
@@ -29,29 +33,11 @@ interface ABCGroup {
 }
 
 export function ParetoChart({ data }: ParetoChartProps) {
-    // Classify categories into A/B/C groups
-    const { curveData, groups } = useMemo(() => {
-        if (data.length === 0) return { curveData: [], groups: [] };
+    const { groups, zoneColorMap } = useMemo(() => {
+        if (data.length === 0) return { groups: [], zoneColorMap: {} as Record<string, string> };
 
         const totalValue = data.reduce((sum, d) => sum + d.value, 0);
 
-        // Build curve points: each point = cumulative % of items vs cumulative % of value
-        // Start with origin (0, 0)
-        const points: { itemPct: number; valuePct: number; name: string }[] = [
-            { itemPct: 0, valuePct: 0, name: '' }
-        ];
-
-        let cumulativeValue = 0;
-        data.forEach((d, i) => {
-            cumulativeValue += d.value;
-            points.push({
-                itemPct: Math.round(((i + 1) / data.length) * 100),
-                valuePct: totalValue === 0 ? 0 : Math.round((cumulativeValue / totalValue) * 100 * 10) / 10,
-                name: d.name,
-            });
-        });
-
-        // Classify into A (up to 80%), B (80-95%), C (95-100%)
         const groupA: string[] = [];
         const groupB: string[] = [];
         const groupC: string[] = [];
@@ -59,12 +45,11 @@ export function ParetoChart({ data }: ParetoChartProps) {
 
         data.forEach(d => {
             accPct += totalValue === 0 ? 0 : (d.value / totalValue) * 100;
-            if (accPct <= 80) groupA.push(d.name);
-            else if (accPct <= 95) groupB.push(d.name);
+            if (accPct <= THRESHOLD_A) groupA.push(d.name);
+            else if (accPct <= THRESHOLD_B) groupB.push(d.name);
             else groupC.push(d.name);
         });
 
-        // If group A is empty but there are items, put at least the first one in A
         if (groupA.length === 0 && data.length > 0) {
             groupA.push(groupB.shift() || groupC.shift() || '');
         }
@@ -72,46 +57,67 @@ export function ParetoChart({ data }: ParetoChartProps) {
         const valueOfGroup = (names: string[]) =>
             data.filter(d => names.includes(d.name)).reduce((s, d) => s + d.value, 0);
 
+        const COLOR_A = '#ef4444';
+        const COLOR_B = '#f97316';
+        const COLOR_C = '#3b82f6';
+
+        // Map each category name to its ABC zone color
+        const zoneColorMap: Record<string, string> = {};
+        groupA.forEach(name => zoneColorMap[name] = COLOR_A);
+        groupB.forEach(name => zoneColorMap[name] = COLOR_B);
+        groupC.forEach(name => zoneColorMap[name] = COLOR_C);
+
         const groups: ABCGroup[] = [
             {
                 label: 'A',
-                color: '#ef4444',
+                color: COLOR_A,
                 bgColor: '#fecaca',
                 categories: groupA,
                 totalValue: valueOfGroup(groupA),
                 percentOfValue: totalValue === 0 ? 0 : Math.round((valueOfGroup(groupA) / totalValue) * 100),
-                percentOfItems: Math.round((groupA.length / data.length) * 100),
+                percentOfItems: data.length === 0 ? 0 : Math.round((groupA.length / data.length) * 100),
             },
             {
                 label: 'B',
-                color: '#f97316',
+                color: COLOR_B,
                 bgColor: '#fed7aa',
                 categories: groupB,
                 totalValue: valueOfGroup(groupB),
                 percentOfValue: totalValue === 0 ? 0 : Math.round((valueOfGroup(groupB) / totalValue) * 100),
-                percentOfItems: Math.round((groupB.length / data.length) * 100),
+                percentOfItems: data.length === 0 ? 0 : Math.round((groupB.length / data.length) * 100),
             },
             {
                 label: 'C',
-                color: '#3b82f6',
+                color: COLOR_C,
                 bgColor: '#bfdbfe',
                 categories: groupC,
                 totalValue: valueOfGroup(groupC),
                 percentOfValue: totalValue === 0 ? 0 : Math.round((valueOfGroup(groupC) / totalValue) * 100),
-                percentOfItems: Math.round((groupC.length / data.length) * 100),
+                percentOfItems: data.length === 0 ? 0 : Math.round((groupC.length / data.length) * 100),
             },
         ].filter(g => g.categories.length > 0);
 
-        return { curveData: points, groups };
+        return { groups, zoneColorMap };
     }, [data]);
 
-    // Compute x-axis boundaries for A/B/C reference areas
-    const aBoundary = data.length > 0
-        ? Math.round(((groups[0]?.categories.length ?? 0) / data.length) * 100)
-        : 0;
-    const bBoundary = data.length > 0
-        ? Math.round((((groups[0]?.categories.length ?? 0) + (groups[1]?.categories.length ?? 0)) / data.length) * 100)
-        : 0;
+    // Custom tooltip
+    const renderTooltip = ({ active, payload }: any) => {
+        if (!active || !payload || payload.length === 0) return null;
+        const point = payload[0]?.payload;
+        if (!point) return null;
+
+        return (
+            <div className="bg-card border rounded-lg shadow-lg p-3 text-sm space-y-1">
+                <p className="font-bold text-foreground">{point.name}</p>
+                <p className="text-muted-foreground">
+                    Gasto: <span className="font-semibold text-foreground">{formatCurrency(point.value, 'ARS')}</span>
+                </p>
+                <p className="text-muted-foreground">
+                    Acumulado: <span className="font-semibold text-foreground">{point.accumulatedPercentage.toFixed(1)}%</span>
+                </p>
+            </div>
+        );
+    };
 
     return (
         <Card>
@@ -125,72 +131,85 @@ export function ParetoChart({ data }: ParetoChartProps) {
                 {data.length > 0 ? (
                     <div className="space-y-4">
                         {/* Chart */}
-                        <div className="h-[350px]">
+                        <div className="h-[400px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart
-                                    data={curveData}
-                                    margin={{ top: 10, right: 10, bottom: 10, left: 45 }}
+                                <ComposedChart
+                                    data={data}
+                                    margin={{ top: 10, right: 15, bottom: 40, left: 15 }}
                                 >
                                     <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+
                                     <XAxis
-                                        dataKey="itemPct"
-                                        type="number"
-                                        domain={[0, 100]}
-                                        tickFormatter={(v) => `${v}%`}
+                                        dataKey="name"
                                         tick={{ fontSize: 12, fontWeight: 600 }}
-                                        label={{ value: '% Categorías', position: 'insideBottom', offset: -5, fontSize: 13, fontWeight: 700 }}
+                                        interval={0}
+                                        angle={-25}
+                                        textAnchor="end"
                                     />
+
+                                    {/* Left axis: absolute amount */}
                                     <YAxis
-                                        domain={[0, 100]}
-                                        tickFormatter={(v) => `${v}%`}
+                                        yAxisId="left"
+                                        orientation="left"
                                         tick={{ fontSize: 12, fontWeight: 600 }}
-                                        label={{ value: '% Gasto acumulado', angle: -90, position: 'insideLeft', dx: -35, dy: 65, fontSize: 13, fontWeight: 700 }}
+                                        tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
                                     />
 
-                                    {/* Zone A background */}
-                                    {aBoundary > 0 && (
-                                        <ReferenceArea x1={0} x2={aBoundary} y1={0} y2={100} fill="#fecaca" fillOpacity={0.4} />
-                                    )}
-                                    {/* Zone B background */}
-                                    {bBoundary > aBoundary && (
-                                        <ReferenceArea x1={aBoundary} x2={bBoundary} y1={0} y2={100} fill="#fed7aa" fillOpacity={0.4} />
-                                    )}
-                                    {/* Zone C background */}
-                                    {bBoundary < 100 && (
-                                        <ReferenceArea x1={bBoundary} x2={100} y1={0} y2={100} fill="#bfdbfe" fillOpacity={0.4} />
-                                    )}
-
-                                    {/* 80% and 95% threshold lines */}
-                                    <ReferenceLine y={80} stroke="#ef4444" strokeDasharray="5 5" strokeWidth={1.5} />
-                                    <ReferenceLine y={95} stroke="#f97316" strokeDasharray="5 5" strokeWidth={1.5} />
-
-                                    <Tooltip
-                                        formatter={(value: any) => [`${value}%`, 'Acumulado']}
-                                        labelFormatter={(label: any) => `${label}% de categorías`}
-                                        contentStyle={{ borderRadius: '8px', fontWeight: 600, fontSize: 13 }}
+                                    {/* Right axis: cumulative percentage */}
+                                    <YAxis
+                                        yAxisId="right"
+                                        orientation="right"
+                                        domain={[0, 100]}
+                                        tick={{ fontSize: 12, fontWeight: 600 }}
+                                        tickFormatter={(v) => `${v}%`}
                                     />
 
-                                    {/* The S-curve */}
-                                    <Area
+                                    {/* 80% threshold line */}
+                                    <ReferenceLine
+                                        yAxisId="right"
+                                        y={80}
+                                        stroke="#ef4444"
+                                        strokeDasharray="6 4"
+                                        strokeWidth={2}
+                                        label={{ value: '80%', position: 'right', fill: '#ef4444', fontWeight: 700, fontSize: 12 }}
+                                    />
+
+                                    <Tooltip content={renderTooltip} />
+
+                                    <Legend
+                                        verticalAlign="top"
+                                        wrapperStyle={{ fontWeight: 600, fontSize: 13 }}
+                                    />
+
+                                    {/* Bars colored by ABC zone */}
+                                    <Bar
+                                        yAxisId="left"
+                                        dataKey="value"
+                                        name="Gasto por categoría"
+                                        barSize={60}
+                                        radius={[4, 4, 0, 0]}
+                                    >
+                                        {data.map((entry, i) => (
+                                            <Cell key={`bar-${i}`} fill={zoneColorMap[entry.name] || '#9ca3af'} />
+                                        ))}
+                                    </Bar>
+
+                                    {/* Cumulative percentage line */}
+                                    <Line
+                                        yAxisId="right"
                                         type="monotone"
-                                        dataKey="valuePct"
+                                        dataKey="accumulatedPercentage"
+                                        name="% Acumulado"
                                         stroke="#1e293b"
                                         strokeWidth={3}
-                                        fill="url(#curveGradient)"
-                                        dot={{ r: 4, fill: '#1e293b', strokeWidth: 2 }}
+                                        dot={{ r: 5, fill: '#1e293b', strokeWidth: 0 }}
+                                        activeDot={{ r: 7, fill: '#1e293b' }}
                                     />
-
-                                    <defs>
-                                        <linearGradient id="curveGradient" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#1e293b" stopOpacity={0.15} />
-                                            <stop offset="95%" stopColor="#1e293b" stopOpacity={0.02} />
-                                        </linearGradient>
-                                    </defs>
-                                </AreaChart>
+                                </ComposedChart>
                             </ResponsiveContainer>
                         </div>
 
-                        {/* Group legend cards */}
+                        {/* ABC group legend */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             {groups.map((group) => (
                                 <div
@@ -200,16 +219,14 @@ export function ParetoChart({ data }: ParetoChartProps) {
                                 >
                                     <div className="flex items-center gap-2">
                                         <span
-                                            className="text-lg font-black w-8 h-8 rounded-full flex items-center justify-center text-white"
+                                            className="text-lg font-black w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0"
                                             style={{ backgroundColor: group.color }}
                                         >
                                             {group.label}
                                         </span>
-                                        <div>
-                                            <p className="text-sm font-bold" style={{ color: group.color }}>
-                                                {group.percentOfItems}% de categorías → {group.percentOfValue}% del gasto
-                                            </p>
-                                        </div>
+                                        <p className="text-sm font-bold" style={{ color: group.color }}>
+                                            {group.percentOfItems}% de categorías → {group.percentOfValue}% del gasto
+                                        </p>
                                     </div>
                                     <div className="text-xs text-muted-foreground font-medium pl-10">
                                         {group.categories.join(', ')} ({formatCurrency(group.totalValue, 'ARS')})
